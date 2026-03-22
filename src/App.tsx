@@ -154,7 +154,7 @@ const templates = {
       enamelColor: "Black",
       enamelType: "Soft (Regular)",
       line1: "FIB",
-      line2: "SUPERVISOR",
+      line2: "",
       line3: "",
       line4: "",
       line5: "",
