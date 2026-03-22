@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Download, BadgeInfo, Settings2 } from "lucide-react";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 type Point = [number, number];
 
@@ -787,6 +788,7 @@ export default function App() {
       >
         Built by David V.
       </a>
+      <SpeedInsights />
     </div>
   );
 }
