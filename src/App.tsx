@@ -656,29 +656,6 @@ export default function App() {
               </Select>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="grid gap-2">
-                <Label>Size</Label>
-                <Input value={form.size} readOnly className="rounded-xl bg-zinc-50" />
-              </div>
-              <div className="grid gap-2">
-                <Label>Finish</Label>
-                <Input value={form.finish} readOnly className="rounded-xl bg-zinc-50" />
-              </div>
-              <div className="grid gap-2">
-                <Label>Font Type</Label>
-                <Input value={form.fontType} readOnly className="rounded-xl bg-zinc-50" />
-              </div>
-              <div className="grid gap-2">
-                <Label>Enamel Color</Label>
-                <Input value={form.enamelColor} readOnly className="rounded-xl bg-zinc-50" />
-              </div>
-              <div className="col-span-2 grid gap-2">
-                <Label>Enamel Type</Label>
-                <Input value={form.enamelType} readOnly className="rounded-xl bg-zinc-50" />
-              </div>
-            </div>
-
             <Separator />
 
             <div className="space-y-3">
