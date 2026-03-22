@@ -785,7 +785,7 @@ export default function App() {
         rel="noopener noreferrer"
         className="fixed bottom-4 right-4 text-xs font-semibold text-zinc-700 bg-gradient-to-r from-white to-zinc-100 px-3 py-1 rounded-lg shadow-md hover:shadow-lg hover:scale-105 transition"
       >
-        Built by David V
+        Built by David V.
       </a>
     </div>
   );
