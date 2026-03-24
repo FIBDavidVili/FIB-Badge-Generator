@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createCanvas, loadImage } from "canvas";
-import { BADGE_LAYOUT, clampText } from "../src/lib/badge";
+import { BADGE_LAYOUT, clampText } from "../src/lib/badge.js";
 
 type Point = [number, number];
 
