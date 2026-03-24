@@ -1,6 +1,11 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createCanvas, loadImage } from "canvas";
+import { createCanvas, loadImage, registerFont } from "canvas";
 import { BADGE_LAYOUT, clampText } from "../src/lib/badge.js";
+
+registerFont(new URL("../public/fonts/Roboto-Bold.ttf", import.meta.url).pathname, {
+  family: "Roboto",
+  weight: "bold",
+});
 
 type Point = [number, number];
 
@@ -15,12 +20,7 @@ function setCanvasFont(
   weight: string,
   size: number
 ) {
-  const family =
-    fontType === "Roman"
-      ? '"DejaVu Serif", "Liberation Serif", serif'
-      : '"DejaVu Sans", "Liberation Sans", Arial, sans-serif';
-
-  ctx.font = `${weight} ${size}px ${family}`;
+  ctx.font = `${weight} ${size}px "Roboto"`;
 }
 
 function strokeAndFillLetterSpaced(
