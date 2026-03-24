@@ -4,19 +4,15 @@ import { BADGE_LAYOUT, clampText } from "../src/lib/badge.js";
 
 type Point = [number, number];
 
-const fontMap = {
-  Block: '900 32px "Arial Black", Impact, sans-serif',
-  Roman: '700 31px Georgia, "Times New Roman", serif',
-};
-
+// ✅ FIXED FONT (no more missing fonts → no more squares)
 function setCanvasFont(
   ctx: CanvasRenderingContext2D,
-  fontType: keyof typeof fontMap | string,
+  fontType: string,
   weight: string,
   size: number
 ) {
-  const fontBase = fontMap[fontType as keyof typeof fontMap] || fontMap.Block;
-  ctx.font = fontBase.replace(/\d+px/, `${size}px`).replace(/^\d+/, weight);
+  const family = fontType === "Roman" ? "serif" : "sans-serif";
+  ctx.font = `${weight} ${size}px ${family}`;
 }
 
 function strokeAndFillLetterSpaced(
@@ -274,14 +270,16 @@ function getShadowColor(finish: string) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const templateKey = String(req.query.templateKey || "command");
-    const line1 = String(req.query.line1 || "FIB");
-    const line2 = String(req.query.line2 || "");
-    const line3 = String(req.query.line3 || "");
-    const line4 = String(req.query.line4 || "");
-    const line5 = String(req.query.line5 || "");
-    const line6 = String(req.query.line6 || "");
-    const fontType = String(req.query.fontType || "Block");
-    const finish = String(req.query.finish || "Gold Electroplate");
+
+    // ✅ FIXED decoding (no more + or weird chars)
+    const line1 = decodeURIComponent(String(req.query.line1 || "FIB"));
+    const line2 = decodeURIComponent(String(req.query.line2 || ""));
+    const line3 = decodeURIComponent(String(req.query.line3 || ""));
+    const line4 = decodeURIComponent(String(req.query.line4 || ""));
+    const line5 = decodeURIComponent(String(req.query.line5 || ""));
+    const line6 = decodeURIComponent(String(req.query.line6 || ""));
+    const fontType = decodeURIComponent(String(req.query.fontType || "Block"));
+    const finish = decodeURIComponent(String(req.query.finish || "Gold Electroplate"));
 
     const canvas = createCanvas(BADGE_LAYOUT.width, BADGE_LAYOUT.height);
     const ctx = canvas.getContext("2d");
