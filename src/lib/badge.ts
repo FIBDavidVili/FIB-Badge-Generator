@@ -406,3 +406,49 @@ export function findRosterEntryByDiscordId(
 
   return null;
 }
+
+export async function getBadgeDataFromDiscordId(discordId: string) {
+  const cleanDiscordId = String(discordId).replace(/\D/g, "");
+
+  if (!cleanDiscordId) return null;
+
+  const response = await fetch(SHEET_CSV_URL);
+
+  if (!response.ok) {
+    throw new Error("Unable to fetch roster data.");
+  }
+
+  const csvText = await response.text();
+  const rows = parseCsv(csvText);
+  const match = findRosterEntryByDiscordId(rows, cleanDiscordId);
+
+  if (!match) return null;
+
+  const callsignParts = splitCallsign(match.callsign);
+  const templateKey = getTemplateFromRank(match.rank);
+  const template = templates[templateKey];
+
+  return {
+    discordId: match.discordId,
+    name: match.name,
+    rank: match.rank,
+    badgeNumber: match.badgeNumber,
+    callsign: match.callsign,
+    callsign1: callsignParts.first,
+    callsign2: callsignParts.second,
+    templateKey,
+    templateName: template.name,
+    imagePath: template.imagePath,
+    line1: "FIB",
+    line2: match.rank,
+    line3: callsignParts.first,
+    line4: callsignParts.second,
+    line5: match.name,
+    line6: match.badgeNumber,
+    fontType: template.defaults.fontType,
+    finish: template.defaults.finish,
+    enamelColor: template.defaults.enamelColor,
+    enamelType: template.defaults.enamelType,
+    size: template.defaults.size,
+  };
+}
