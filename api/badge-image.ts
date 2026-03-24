@@ -4,14 +4,22 @@ import { BADGE_LAYOUT, clampText } from "../src/lib/badge.js";
 
 type Point = [number, number];
 
-// ✅ FIXED FONT (no more missing fonts → no more squares)
+function decodeParam(value: unknown, fallback = "") {
+  const raw = String(value ?? fallback);
+  return decodeURIComponent(raw.replace(/\+/g, " "));
+}
+
 function setCanvasFont(
   ctx: CanvasRenderingContext2D,
   fontType: string,
   weight: string,
   size: number
 ) {
-  const family = fontType === "Roman" ? "serif" : "sans-serif";
+  const family =
+    fontType === "Roman"
+      ? '"DejaVu Serif", "Liberation Serif", serif'
+      : '"DejaVu Sans", "Liberation Sans", Arial, sans-serif';
+
   ctx.font = `${weight} ${size}px ${family}`;
 }
 
@@ -33,7 +41,8 @@ function strokeAndFillLetterSpaced(
   const chars = text.split("");
   const widths = chars.map((ch) => ctx.measureText(ch).width);
   const totalWidth =
-    widths.reduce((sum, w) => sum + w, 0) + spacing * (chars.length - 1);
+    widths.reduce((sum, w) => sum + w, 0) + spacing * Math.max(0, chars.length - 1);
+
   let cursor = x - totalWidth / 2;
 
   chars.forEach((ch, index) => {
@@ -207,9 +216,7 @@ function fitPathFontSize(
     setCanvasFont(ctx, fontType, config.weight, size);
     const { totalWidth } = getTextAdvance(ctx, text, config.letterSpacing || 0);
 
-    if (totalWidth <= usableLength) {
-      return size;
-    }
+    if (totalWidth <= usableLength) return size;
 
     size -= 1;
     if (size <= minSize) return minSize;
@@ -269,17 +276,15 @@ function getShadowColor(finish: string) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    const templateKey = String(req.query.templateKey || "command");
-
-    // ✅ FIXED decoding (no more + or weird chars)
-    const line1 = decodeURIComponent(String(req.query.line1 || "FIB"));
-    const line2 = decodeURIComponent(String(req.query.line2 || ""));
-    const line3 = decodeURIComponent(String(req.query.line3 || ""));
-    const line4 = decodeURIComponent(String(req.query.line4 || ""));
-    const line5 = decodeURIComponent(String(req.query.line5 || ""));
-    const line6 = decodeURIComponent(String(req.query.line6 || ""));
-    const fontType = decodeURIComponent(String(req.query.fontType || "Block"));
-    const finish = decodeURIComponent(String(req.query.finish || "Gold Electroplate"));
+    const templateKey = decodeParam(req.query.templateKey, "command");
+    const line1 = decodeParam(req.query.line1, "FIB");
+    const line2 = decodeParam(req.query.line2, "");
+    const line3 = decodeParam(req.query.line3, "");
+    const line4 = decodeParam(req.query.line4, "");
+    const line5 = decodeParam(req.query.line5, "");
+    const line6 = decodeParam(req.query.line6, "");
+    const fontType = decodeParam(req.query.fontType, "Block");
+    const finish = decodeParam(req.query.finish, "Gold Electroplate");
 
     const canvas = createCanvas(BADGE_LAYOUT.width, BADGE_LAYOUT.height);
     const ctx = canvas.getContext("2d");
