@@ -10,7 +10,7 @@ const fontMap = {
 };
 
 function setCanvasFont(
-  ctx: any,
+  ctx: CanvasRenderingContext2D,
   fontType: keyof typeof fontMap | string,
   weight: string,
   size: number
@@ -20,7 +20,7 @@ function setCanvasFont(
 }
 
 function strokeAndFillLetterSpaced(
-  ctx: any,
+  ctx: CanvasRenderingContext2D,
   text: string,
   x: number,
   y: number,
@@ -35,12 +35,12 @@ function strokeAndFillLetterSpaced(
   }
 
   const chars = text.split("");
-  const widths = chars.map((ch: string) => ctx.measureText(ch).width);
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
   const totalWidth =
-    widths.reduce((sum: number, w: number) => sum + w, 0) + spacing * (chars.length - 1);
+    widths.reduce((sum, w) => sum + w, 0) + spacing * (chars.length - 1);
   let cursor = x - totalWidth / 2;
 
-  chars.forEach((ch: string, index: number) => {
+  chars.forEach((ch, index) => {
     const drawX = cursor + widths[index] / 2;
     ctx.strokeText(ch, drawX, y);
     ctx.fillText(ch, drawX, y);
@@ -48,7 +48,7 @@ function strokeAndFillLetterSpaced(
   });
 }
 
-function drawStraightText(ctx: any, text: string, config: any) {
+function drawStraightText(ctx: CanvasRenderingContext2D, text: string, config: any) {
   const rotation = config.rotation || 0;
   ctx.save();
   ctx.translate(config.x || 0, config.y || 0);
@@ -167,17 +167,21 @@ function getPointAtLength(
   return { x: last.x, y: last.y, angle: 0 };
 }
 
-function getTextAdvance(ctx: any, text: string, letterSpacing = 0) {
+function getTextAdvance(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  letterSpacing = 0
+) {
   const chars = text.split("");
-  const widths = chars.map((ch: string) => ctx.measureText(ch).width);
+  const widths = chars.map((ch) => ctx.measureText(ch).width);
   const totalWidth =
-    widths.reduce((sum: number, w: number) => sum + w, 0) +
+    widths.reduce((sum, w) => sum + w, 0) +
     letterSpacing * Math.max(0, chars.length - 1);
   return { widths, totalWidth };
 }
 
 function fitPathFontSize(
-  ctx: any,
+  ctx: CanvasRenderingContext2D,
   text: string,
   config: any,
   fontType: string,
@@ -219,7 +223,7 @@ function fitPathFontSize(
 }
 
 function drawSmoothPathText(
-  ctx: any,
+  ctx: CanvasRenderingContext2D,
   text: string,
   config: any,
   fontType: string,
@@ -317,7 +321,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       line6,
     };
 
-    Object.entries(BADGE_LAYOUT.lines).forEach(([key, config]) => {
+    (Object.entries(BADGE_LAYOUT.lines) as [string, any][]).forEach(([key, config]) => {
       const text = clampText(form[key] || "", config.maxLen);
       if (!text) return;
 
