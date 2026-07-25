@@ -33,7 +33,7 @@ export type LookupResult = {
 };
 
 export const SHEET_CSV_URL =
-  "https://docs.google.com/spreadsheets/d/1vBtzNCIWL7GKNQSr8LQPdGpe7v6XpuM0aGBcBK3YTs0/edit?gid=1598342668#gid=1598342668";
+  "https://docs.google.com/spreadsheets/d/1vBtzNCIWL7GKNQSr8LQPdGpe7v6XpuM0aGBcBK3YTs0";
 
 export const BADGE_LAYOUT: {
   width: number;
