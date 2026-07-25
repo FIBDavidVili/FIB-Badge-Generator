@@ -32,7 +32,8 @@ export type LookupResult = {
   discordId: string;
 };
 
-export const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1vBtzNCIWL7GKNQSr8LQPdGpe7v6XpuM0aGBcBK3YTs0/edit?usp=sharing";
+export const SHEET_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/1vBtzNCIWL7GKNQSr8LQPdGpe7v6XpuM0aGBcBK3YTs0/export?format=csv&gid=1598342668";
 
 export const BADGE_LAYOUT: {
   width: number;
