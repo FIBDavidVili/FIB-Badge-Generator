@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Download, BadgeInfo, Settings2 } from "lucide-react";
+
 import {
   BADGE_LAYOUT,
   templates,
@@ -10,6 +11,7 @@ import {
   getTemplateFromRank,
   clampText,
 } from "./lib/badge";
+
 import type { TemplateKey } from "./lib/badge";
 
 type BuilderMode = "semiAutomatic" | "manual";
@@ -25,8 +27,12 @@ function setCanvasFont(
   weight: string,
   size: number
 ) {
-  const fontBase = fontMap[fontType as keyof typeof fontMap] || fontMap.Block;
-  ctx.font = fontBase.replace(/\d+px/, `${size}px`).replace(/^\d+/, weight);
+  const fontBase =
+    fontMap[fontType as keyof typeof fontMap] || fontMap.Block;
+
+  ctx.font = fontBase
+    .replace(/\d+px/, `${size}px`)
+    .replace(/^\d+/, weight);
 }
 
 function strokeAndFillLetterSpaced(
@@ -45,15 +51,23 @@ function strokeAndFillLetterSpaced(
   }
 
   const chars = text.split("");
-  const widths = chars.map((ch) => ctx.measureText(ch).width);
+  const widths = chars.map((ch) =>
+    ctx.measureText(ch).width
+  );
+
   const totalWidth =
-    widths.reduce((sum, w) => sum + w, 0) + spacing * (chars.length - 1);
+    widths.reduce((sum, w) => sum + w, 0) +
+    spacing * (chars.length - 1);
+
   let cursor = x - totalWidth / 2;
 
   chars.forEach((ch, index) => {
-    const drawX = cursor + widths[index] / 2;
+    const drawX =
+      cursor + widths[index] / 2;
+
     ctx.strokeText(ch, drawX, y);
     ctx.fillText(ch, drawX, y);
+
     cursor += widths[index] + spacing;
   });
 }
@@ -63,11 +77,23 @@ function drawStraightText(
   text: string,
   config: (typeof BADGE_LAYOUT.lines)[string]
 ) {
-  const rotation = config.rotation || 0;
   ctx.save();
-  ctx.translate(config.x || 0, config.y || 0);
-  ctx.rotate(rotation);
-  strokeAndFillLetterSpaced(ctx, text, 0, 0, config.letterSpacing || 0);
+
+  ctx.translate(
+    config.x || 0,
+    config.y || 0
+  );
+
+  ctx.rotate(config.rotation || 0);
+
+  strokeAndFillLetterSpaced(
+    ctx,
+    text,
+    0,
+    0,
+    config.letterSpacing || 0
+  );
+
   ctx.restore();
 }
 
@@ -75,28 +101,47 @@ type Point = [number, number];
 
 function catmullRomToBezier(points: Point[]) {
   if (points.length < 2) return [];
-  const beziers: [Point, Point, Point, Point][] = [];
 
-  for (let i = 0; i < points.length - 1; i++) {
+  const curves: [
+    Point,
+    Point,
+    Point,
+    Point
+  ][] = [];
+
+  for (
+    let i = 0;
+    i < points.length - 1;
+    i++
+  ) {
     const p0 = points[i - 1] || points[i];
     const p1 = points[i];
     const p2 = points[i + 1];
     const p3 = points[i + 2] || p2;
 
     const cp1: Point = [
-      p1[0] + (p2[0] - p0[0]) / 6,
-      p1[1] + (p2[1] - p0[1]) / 6,
+      p1[0] +
+        (p2[0] - p0[0]) / 6,
+      p1[1] +
+        (p2[1] - p0[1]) / 6,
     ];
 
     const cp2: Point = [
-      p2[0] - (p3[0] - p1[0]) / 6,
-      p2[1] - (p3[1] - p1[1]) / 6,
+      p2[0] -
+        (p3[0] - p1[0]) / 6,
+      p2[1] -
+        (p3[1] - p1[1]) / 6,
     ];
 
-    beziers.push([p1, cp1, cp2, p2]);
+    curves.push([
+      p1,
+      cp1,
+      cp2,
+      p2,
+    ]);
   }
 
-  return beziers;
+  return curves;
 }
 
 function cubicPoint(
@@ -107,136 +152,261 @@ function cubicPoint(
   t: number
 ): Point {
   const mt = 1 - t;
-  const x =
-    mt * mt * mt * p0[0] +
-    3 * mt * mt * t * p1[0] +
-    3 * mt * t * t * p2[0] +
-    t * t * t * p3[0];
-  const y =
-    mt * mt * mt * p0[1] +
-    3 * mt * mt * t * p1[1] +
-    3 * mt * t * t * p2[1] +
-    t * t * t * p3[1];
-  return [x, y];
-}
 
-function buildSmoothPathSamples(points: Point[], detailPerSegment = 40) {
+  return [
+    mt * mt * mt * p0[0] +
+      3 * mt * mt * t * p1[0] +
+      3 * mt * t * t * p2[0] +
+      t * t * t * p3[0],
+
+    mt * mt * mt * p0[1] +
+      3 * mt * mt * t * p1[1] +
+      3 * mt * t * t * p2[1] +
+      t * t * t * p3[1],
+  ];
+}
+function buildSmoothPathSamples(
+  points: Point[],
+  detailPerSegment = 40
+) {
   const curves = catmullRomToBezier(points);
-  const samples: { x: number; y: number; length: number }[] = [];
+
+  const samples: {
+    x: number;
+    y: number;
+    length: number;
+  }[] = [];
 
   let totalLength = 0;
-  let prev: Point | null = null;
+  let previous: Point | null = null;
 
   curves.forEach(([p0, p1, p2, p3], curveIndex) => {
     for (let i = 0; i <= detailPerSegment; i++) {
       if (curveIndex > 0 && i === 0) continue;
-      const t = i / detailPerSegment;
-      const [x, y] = cubicPoint(p0, p1, p2, p3, t);
 
-      if (prev) {
-        totalLength += Math.hypot(x - prev[0], y - prev[1]);
+      const t = i / detailPerSegment;
+
+      const [x, y] = cubicPoint(
+        p0,
+        p1,
+        p2,
+        p3,
+        t
+      );
+
+      if (previous) {
+        totalLength += Math.hypot(
+          x - previous[0],
+          y - previous[1]
+        );
       }
 
-      samples.push({ x, y, length: totalLength });
-      prev = [x, y];
+      samples.push({
+        x,
+        y,
+        length: totalLength,
+      });
+
+      previous = [x, y];
     }
   });
 
-  return { samples, totalLength };
+  return {
+    samples,
+    totalLength,
+  };
 }
 
+
 function getPointAtLength(
-  samples: { x: number; y: number; length: number }[],
+  samples: {
+    x: number;
+    y: number;
+    length: number;
+  }[],
   targetLength: number
 ) {
-  if (!samples.length) return { x: 0, y: 0, angle: 0 };
+  if (!samples.length) {
+    return {
+      x: 0,
+      y: 0,
+      angle: 0,
+    };
+  }
 
   if (targetLength <= 0) {
-    const a = Math.atan2(
-      (samples[1]?.y ?? 0) - samples[0].y,
-      (samples[1]?.x ?? 1) - samples[0].x
-    );
-    return { x: samples[0].x, y: samples[0].y, angle: a };
+    return {
+      x: samples[0].x,
+      y: samples[0].y,
+      angle: 0,
+    };
   }
 
-  const last = samples[samples.length - 1];
+  const last =
+    samples[samples.length - 1];
+
   if (targetLength >= last.length) {
-    const prev = samples[samples.length - 2] || last;
-    const a = Math.atan2(last.y - prev.y, last.x - prev.x);
-    return { x: last.x, y: last.y, angle: a };
+    const previous =
+      samples[samples.length - 2] || last;
+
+    return {
+      x: last.x,
+      y: last.y,
+      angle: Math.atan2(
+        last.y - previous.y,
+        last.x - previous.x
+      ),
+    };
   }
 
-  for (let i = 1; i < samples.length; i++) {
+
+  for (
+    let i = 1;
+    i < samples.length;
+    i++
+  ) {
     const a = samples[i - 1];
     const b = samples[i];
 
     if (targetLength <= b.length) {
-      const segLen = b.length - a.length || 1;
-      const t = (targetLength - a.length) / segLen;
-      const x = a.x + (b.x - a.x) * t;
-      const y = a.y + (b.y - a.y) * t;
-      const angle = Math.atan2(b.y - a.y, b.x - a.x);
-      return { x, y, angle };
+      const segment =
+        b.length - a.length || 1;
+
+      const t =
+        (targetLength - a.length) /
+        segment;
+
+      return {
+        x:
+          a.x +
+          (b.x - a.x) * t,
+
+        y:
+          a.y +
+          (b.y - a.y) * t,
+
+        angle: Math.atan2(
+          b.y - a.y,
+          b.x - a.x
+        ),
+      };
     }
   }
 
-  return { x: last.x, y: last.y, angle: 0 };
+  return {
+    x: last.x,
+    y: last.y,
+    angle: 0,
+  };
 }
+
 
 function getTextAdvance(
   ctx: CanvasRenderingContext2D,
   text: string,
-  letterSpacing = 0
+  spacing = 0
 ) {
-  const chars = text.split("");
-  const widths = chars.map((ch) => ctx.measureText(ch).width);
-  const totalWidth =
-    widths.reduce((sum, w) => sum + w, 0) +
-    letterSpacing * Math.max(0, chars.length - 1);
-  return { widths, totalWidth };
+  const widths = text
+    .split("")
+    .map((char) =>
+      ctx.measureText(char).width
+    );
+
+  return {
+    widths,
+
+    totalWidth:
+      widths.reduce(
+        (sum, width) => sum + width,
+        0
+      ) +
+      spacing *
+        Math.max(
+          0,
+          text.length - 1
+        ),
+  };
 }
+
 
 function fitPathFontSize(
   ctx: CanvasRenderingContext2D,
   text: string,
   config: (typeof BADGE_LAYOUT.lines)[string],
   fontType: string,
-  baseSize: number,
+  size: number,
   key?: string
 ) {
-  if (!config.points || config.points.length < 2) return baseSize;
+  if (
+    !config.points ||
+    config.points.length < 2
+  ) {
+    return size;
+  }
 
-  const { totalLength } = buildSmoothPathSamples(config.points, 40);
+  const {
+    totalLength,
+  } = buildSmoothPathSamples(
+    config.points
+  );
 
-  let usableLength = totalLength * 0.9;
-  let minSize = 20;
+
+  let usable =
+    totalLength * 0.9;
+
+  let minimum = 20;
+
 
   if (key === "line2") {
-    usableLength = totalLength * 0.94;
-    minSize = 18;
+    usable =
+      totalLength * 0.94;
+    minimum = 18;
   }
+
 
   if (key === "line5") {
-    usableLength = totalLength * 0.84;
-    minSize = 18;
+    usable =
+      totalLength * 0.84;
+    minimum = 18;
   }
 
-  let size = baseSize;
+
+  let current = size;
+
 
   for (let i = 0; i < 40; i++) {
-    setCanvasFont(ctx, fontType, config.weight, size);
-    const { totalWidth } = getTextAdvance(ctx, text, config.letterSpacing || 0);
+    setCanvasFont(
+      ctx,
+      fontType,
+      config.weight,
+      current
+    );
 
-    if (totalWidth <= usableLength) {
-      return size;
+    const {
+      totalWidth,
+    } = getTextAdvance(
+      ctx,
+      text,
+      config.letterSpacing || 0
+    );
+
+
+    if (totalWidth <= usable) {
+      return current;
     }
 
-    size -= 1;
-    if (size <= minSize) return minSize;
+
+    current--;
+
+    if (current <= minimum) {
+      return minimum;
+    }
   }
 
-  return Math.max(minSize, size);
+
+  return current;
 }
+
 
 function drawSmoothPathText(
   ctx: CanvasRenderingContext2D,
@@ -245,56 +415,122 @@ function drawSmoothPathText(
   fontType: string,
   key?: string
 ) {
-  if (!text || !config.points || config.points.length < 2) return;
-
-  const fontSize = fitPathFontSize(
-    ctx,
-    text,
-    config,
-    fontType,
-    config.fontSize,
-    key
-  );
-  setCanvasFont(ctx, fontType, config.weight, fontSize);
-
-  const { widths, totalWidth } = getTextAdvance(
-    ctx,
-    text,
-    config.letterSpacing || 0
-  );
-  const { samples, totalLength } = buildSmoothPathSamples(config.points, 50);
-
-  if (!samples.length || totalLength <= 0) return;
-
-  const startOffset = Math.max(0, (totalLength - totalWidth) / 2);
-  let cursor = startOffset;
-
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    const charWidth = widths[i];
-    const centerAt = cursor + charWidth / 2;
-
-    const { x, y, angle } = getPointAtLength(samples, centerAt);
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(angle);
-    ctx.strokeText(ch, 0, 0);
-    ctx.fillText(ch, 0, 0);
-    ctx.restore();
-
-    cursor += charWidth + (config.letterSpacing || 0);
+  if (
+    !text ||
+    !config.points ||
+    config.points.length < 2
+  ) {
+    return;
   }
+
+
+  const fontSize =
+    fitPathFontSize(
+      ctx,
+      text,
+      config,
+      fontType,
+      config.fontSize,
+      key
+    );
+
+
+  setCanvasFont(
+    ctx,
+    fontType,
+    config.weight,
+    fontSize
+  );
+
+
+  const {
+    widths,
+    totalWidth,
+  } =
+    getTextAdvance(
+      ctx,
+      text,
+      config.letterSpacing || 0
+    );
+
+
+  const {
+    samples,
+    totalLength,
+  } =
+    buildSmoothPathSamples(
+      config.points,
+      50
+    );
+
+
+  let cursor =
+    Math.max(
+      0,
+      (totalLength - totalWidth) / 2
+    );
+
+
+  text.split("").forEach(
+    (char, index) => {
+      const point =
+        getPointAtLength(
+          samples,
+          cursor +
+            widths[index] / 2
+        );
+
+
+      ctx.save();
+
+      ctx.translate(
+        point.x,
+        point.y
+      );
+
+      ctx.rotate(
+        point.angle
+      );
+
+      ctx.strokeText(
+        char,
+        0,
+        0
+      );
+
+      ctx.fillText(
+        char,
+        0,
+        0
+      );
+
+      ctx.restore();
+
+
+      cursor +=
+        widths[index] +
+        (config.letterSpacing || 0);
+    }
+  );
 }
 
-function buildInitialState(templateKey: keyof typeof templates) {
-  const defaults = templates[templateKey].defaults;
+
+function buildInitialState(
+  templateKey: keyof typeof templates
+) {
+  const defaults =
+    templates[templateKey]
+      .defaults;
+
   return {
     size: defaults.size,
     finish: defaults.finish,
     fontType: defaults.fontType,
-    enamelColor: defaults.enamelColor,
-    enamelType: defaults.enamelType,
+    enamelColor:
+      defaults.enamelColor,
+    enamelType:
+      defaults.enamelType,
+
     line1: defaults.line1,
     line2: defaults.line2,
     line3: defaults.line3,
@@ -304,16 +540,25 @@ function buildInitialState(templateKey: keyof typeof templates) {
   };
 }
 
+
 function makeEmptyImages() {
   return {
-    patrolAgent: null as HTMLImageElement | null,
-    command: null as HTMLImageElement | null,
-    trialLowCommand: null as HTMLImageElement | null,
-    supervisor: null as HTMLImageElement | null,
-    trialSupervisor: null as HTMLImageElement | null,
+    patrolAgent:
+      null as HTMLImageElement | null,
+
+    command:
+      null as HTMLImageElement | null,
+
+    trialLowCommand:
+      null as HTMLImageElement | null,
+
+    supervisor:
+      null as HTMLImageElement | null,
+
+    trialSupervisor:
+      null as HTMLImageElement | null,
   };
 }
-
 function Card({
   className = "",
   children,
@@ -321,8 +566,13 @@ function Card({
   className?: string;
   children: React.ReactNode;
 }) {
-  return <div className={`bg-white ${className}`}>{children}</div>;
+  return (
+    <div className={`bg-white ${className}`}>
+      {children}
+    </div>
+  );
 }
+
 
 function CardContent({
   className = "",
@@ -331,8 +581,13 @@ function CardContent({
   className?: string;
   children: React.ReactNode;
 }) {
-  return <div className={className}>{children}</div>;
+  return (
+    <div className={className}>
+      {children}
+    </div>
+  );
 }
+
 
 function Button({
   className = "",
@@ -349,22 +604,40 @@ function Button({
   );
 }
 
-function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
+
+function Input(
+  props: React.InputHTMLAttributes<HTMLInputElement>
+) {
   return (
     <input
       {...props}
-      className={`w-full border border-zinc-300 px-3 py-2 outline-none focus:border-zinc-500 ${props.className || ""}`}
+      className={`w-full border border-zinc-300 px-3 py-2 outline-none focus:border-zinc-500 ${
+        props.className || ""
+      }`}
     />
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <label className="text-sm font-medium text-zinc-700">{children}</label>;
+
+function Label({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="text-sm font-medium text-zinc-700">
+      {children}
+    </label>
+  );
 }
 
+
 function Separator() {
-  return <div className="h-px w-full bg-zinc-200" />;
+  return (
+    <div className="h-px w-full bg-zinc-200" />
+  );
 }
+
 
 function Select({
   value,
@@ -378,13 +651,16 @@ function Select({
   return (
     <select
       value={value}
-      onChange={(e) => onValueChange(e.target.value)}
+      onChange={(e) =>
+        onValueChange(e.target.value)
+      }
       className="w-full rounded-xl border border-zinc-300 px-3 py-2 outline-none focus:border-zinc-500"
     >
       {children}
     </select>
   );
 }
+
 
 function SelectItem({
   value,
@@ -393,60 +669,217 @@ function SelectItem({
   value: string;
   children: React.ReactNode;
 }) {
-  return <option value={value}>{children}</option>;
+  return (
+    <option value={value}>
+      {children}
+    </option>
+  );
 }
 
-export default function App() {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [discordId, setDiscordId] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [loaded, setLoaded] = useState(false);
+export default function App() {
+  const canvasRef =
+    useRef<HTMLCanvasElement | null>(null);
+
+
+  const [mode, setMode] =
+    useState<BuilderMode>(
+      "semiAutomatic"
+    );
+
 
   const [templateKey, setTemplateKey] =
-    useState<TemplateKey>("command");
+    useState<TemplateKey>(
+      "command"
+    );
 
-  const [form, setForm] = useState(
-    buildInitialState("command")
-  );
+
+  const [form, setForm] =
+    useState(
+      buildInitialState("command")
+    );
+
 
   const [templateImages, setTemplateImages] =
-    useState(makeEmptyImages());
+    useState(
+      makeEmptyImages()
+    );
 
-  const template = templates[templateKey];
-  const currentImage = templateImages[templateKey];
+
+  const [discordId, setDiscordId] =
+    useState("");
+
+
+  const [lookupLoading, setLookupLoading] =
+    useState(false);
+
+
+  const [lookupError, setLookupError] =
+    useState("");
+
+
+  const [lookupSuccess, setLookupSuccess] =
+    useState("");
+
+
+  const template =
+    templates[templateKey];
+
+
+  const previewList =
+    useMemo(
+      () => Object.values(templates),
+      []
+    );
+
+
+  const currentImage =
+    templateImages[templateKey];
+
+
+  const isSemiAutomatic =
+    mode === "semiAutomatic";
 
 
   useEffect(() => {
-    Object.entries(templates).forEach(([key, tpl]) => {
+    const entries =
+      Object.entries(templates) as [
+        keyof typeof templates,
+        (typeof templates)[keyof typeof templates]
+      ][];
 
-      const img = new Image();
 
-      img.onload = () => {
-        setTemplateImages(prev => ({
-          ...prev,
-          [key]: img
-        }));
-      };
+    entries.forEach(
+      ([key, tpl]) => {
+        const img =
+          new Image();
 
-      img.src = tpl.imagePath;
 
-    });
+        img.onload = () => {
+          setTemplateImages(
+            (prev) => ({
+              ...prev,
+              [key]: img,
+            })
+          );
+        };
+
+
+        img.src =
+          tpl.imagePath;
+      }
+    );
   }, []);
 
 
   useEffect(() => {
     drawBadge();
-  }, [form, templateKey, templateImages]);
+  }, [
+    form,
+    templateKey,
+    templateImages,
+  ]);
 
 
-  function drawBadge() {
+  function applyTemplateDefaults(
+    nextTemplateKey: TemplateKey,
+    preserveLines = true
+  ) {
+    const defaults =
+      templates[nextTemplateKey]
+        .defaults;
 
+
+    setTemplateKey(
+      nextTemplateKey
+    );
+
+
+    setForm((prev) => ({
+      ...prev,
+
+      size:
+        defaults.size,
+
+      finish:
+        defaults.finish,
+
+      fontType:
+        defaults.fontType,
+
+      enamelColor:
+        defaults.enamelColor,
+
+      enamelType:
+        defaults.enamelType,
+
+
+      line1:
+        "FIB",
+
+      line2:
+        preserveLines
+          ? prev.line2
+          : defaults.line2,
+
+      line3:
+        preserveLines
+          ? prev.line3
+          : defaults.line3,
+
+      line4:
+        preserveLines
+          ? prev.line4
+          : defaults.line4,
+
+      line5:
+        preserveLines
+          ? prev.line5
+          : defaults.line5,
+
+      line6:
+        preserveLines
+          ? prev.line6
+          : defaults.line6,
+    }));
+  }
+
+
+  function setField(
+    key: string,
+    value: string
+  ) {
+    setForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  }
+
+
+  function getTextColor() {
+    return "#1a1a1a";
+  }
+
+
+  function getShadowColor() {
+    if (
+      form.finish.includes("Nickel") ||
+      form.finish.includes("Silver") ||
+      form.finish.includes("Sil-Ray")
+    ) {
+      return "rgba(255,255,255,0.92)";
+    }
+
+    return "rgba(255,245,210,0.95)";
+  }
+    function drawBadge() {
     const canvas = canvasRef.current;
-    if (!canvas || !currentImage) return;
 
-    const ctx = canvas.getContext("2d");
+    if (!canvas) return;
+
+    const ctx =
+      canvas.getContext("2d");
+
     if (!ctx) return;
 
 
@@ -456,6 +889,9 @@ export default function App() {
       canvas.width,
       canvas.height
     );
+
+
+    if (!currentImage) return;
 
 
     ctx.drawImage(
@@ -470,13 +906,22 @@ export default function App() {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    ctx.fillStyle = "#1a1a1a";
-    ctx.strokeStyle = "rgba(255,245,210,.95)";
+    ctx.fillStyle =
+      getTextColor();
+
+    ctx.strokeStyle =
+      getShadowColor();
+
     ctx.lineWidth = 3.5;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.miterLimit = 2;
 
 
-    Object.entries(BADGE_LAYOUT.lines)
-      .forEach(([key, config]) => {
+    Object.entries(
+      BADGE_LAYOUT.lines
+    ).forEach(
+      ([key, config]) => {
 
         const text =
           clampText(
@@ -484,10 +929,13 @@ export default function App() {
             config.maxLen
           );
 
+
         if (!text) return;
 
 
-        if (config.type === "straight") {
+        if (
+          config.type === "straight"
+        ) {
 
           setCanvasFont(
             ctx,
@@ -496,15 +944,16 @@ export default function App() {
             config.fontSize
           );
 
+
           drawStraightText(
             ctx,
             text,
             config
           );
 
-        } 
-        
-        else {
+        } else if (
+          config.type === "path"
+        ) {
 
           drawSmoothPathText(
             ctx,
@@ -513,66 +962,83 @@ export default function App() {
             form.fontType,
             key
           );
-
         }
-
-      });
+      }
+    );
   }
 
 
 
-  async function getBadge() {
+  async function fetchBadgeDetails(
+    id?: string
+  ) {
 
-    const id =
-      discordId.replace(/\D/g, "");
+    const cleanDiscordId =
+      (id || discordId)
+        .replace(/\D/g, "");
 
 
-    if (!id) {
+    setLookupError("");
+    setLookupSuccess("");
 
-      setError(
-        "Please enter your Discord ID."
-      );
 
+    if (!cleanDiscordId) {
       return;
-
     }
-
-
-    setLoading(true);
-    setError("");
-    setLoaded(false);
 
 
     try {
 
+      setLookupLoading(true);
+
 
       const response =
         await fetch(
-          `/api/badge?discordId=${id}`
+          SHEET_CSV_URL
         );
 
 
-      const data =
-        await response.json();
-
-
-      if (!data.ok) {
-
+      if (!response.ok) {
         throw new Error(
-          data.error
+          "Unable to fetch roster data."
         );
-
       }
 
 
-      const badge =
-        data.badge;
+      const csvText =
+        await response.text();
+
+
+      const rows =
+        parseCsv(csvText);
+
+
+      const match =
+        findRosterEntryByDiscordId(
+          rows,
+          cleanDiscordId
+        );
+
+
+      if (!match) {
+
+        setLookupError(
+          "No badge details were found for that Discord ID."
+        );
+
+        return;
+      }
 
 
       const nextTemplate =
-        badge.templateKey ||
         getTemplateFromRank(
-          badge.rank
+          match.rank
+        );
+
+
+      const callsignParts =
+        splitCallsign(
+          match.callsign
         );
 
 
@@ -581,223 +1047,594 @@ export default function App() {
       );
 
 
-      setForm(prev => ({
+      setForm((prev) => ({
         ...prev,
 
-        line1: badge.line1,
-        line2: badge.line2,
-        line3: badge.line3,
-        line4: badge.line4,
-        line5: badge.line5,
-        line6: badge.line6,
-
-        fontType:
-          badge.fontType ||
-          "Block",
+        size:
+          templates[nextTemplate]
+            .defaults.size,
 
         finish:
-          badge.finish ||
-          "Standard"
+          templates[nextTemplate]
+            .defaults.finish,
 
+        fontType:
+          templates[nextTemplate]
+            .defaults.fontType,
+
+        enamelColor:
+          templates[nextTemplate]
+            .defaults.enamelColor,
+
+        enamelType:
+          templates[nextTemplate]
+            .defaults.enamelType,
+
+
+        line1:
+          "FIB",
+
+        line2:
+          match.rank,
+
+        line3:
+          callsignParts.first,
+
+        line4:
+          callsignParts.second,
+
+        line5:
+          match.name,
+
+        line6:
+          match.badgeNumber,
       }));
 
 
-      setLoaded(true);
-
-
-      // automatic download popup
-      setTimeout(() => {
-
-        const link =
-          document.createElement(
-            "a"
-          );
-
-        link.href =
-          data.imageUrl;
-
-        link.download =
-          "FIB-Badge.png";
-
-        document.body.appendChild(
-          link
-        );
-
-        link.click();
-
-        document.body.removeChild(
-          link
-        );
-
-
-      }, 1000);
-
-
-
-    }
-
-    catch(err:any){
-
-      setError(
-        err.message
+      setLookupSuccess(
+        "Badge loaded successfully."
       );
 
+
+    } catch (error) {
+
+      console.error(error);
+
+      setLookupError(
+        "There was a problem fetching the roster data."
+      );
+
+
+    } finally {
+
+      setLookupLoading(false);
+
     }
-
-    finally {
-
-      setLoading(false);
-
-    }
-
   }
 
 
 
+  function clearBadgeDetails() {
+
+    setLookupError("");
+
+    setLookupSuccess("");
+
+    setDiscordId("");
+
+    setTemplateKey(
+      "command"
+    );
+
+    setForm(
+      buildInitialState(
+        "command"
+      )
+    );
+  }
+
+
+
+  function downloadBadge() {
+
+    if (
+      !canvasRef.current ||
+      !currentImage
+    ) return;
+
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+
+    link.href =
+      canvasRef.current.toDataURL(
+        "image/png",
+        1
+      );
+
+
+    link.download =
+      `${template.name
+        .replace(/\s+/g, "-")
+        .toLowerCase()}-badge.png`;
+
+
+    link.click();
+  }
+
+
+
+  const subtitle =
+    mode === "manual"
+      ? "Choose a badge template and generate badges directly on the website."
+      : "Paste your Discord ID and your badge will load automatically.";
+
+
+
   return (
+    <div className="min-h-screen bg-zinc-100 p-4 md:p-6">
 
-    <div className="min-h-screen bg-zinc-100 flex items-center justify-center p-6">
-
-
-      {!loaded && !loading && (
-
-        <div className="bg-white rounded-3xl shadow-xl p-8 w-full max-w-md text-center">
-
-
-          <img
-            src="/favicon.png"
-            className="w-20 h-20 mx-auto mb-5"
-          />
+      <div
+        className={`mx-auto grid max-w-7xl gap-6 ${
+          isSemiAutomatic
+            ? "xl:grid-cols-[340px_minmax(0,1fr)]"
+            : "xl:grid-cols-[380px_minmax(0,1fr)]"
+        }`}
+      >
 
 
-          <h1 className="text-2xl font-bold">
-            FIB Badge Claim
-          </h1>
+        <Card className="rounded-3xl border-0 shadow-xl">
+
+          <CardContent className="space-y-6 p-5">
 
 
-          <p className="text-zinc-500 mb-5">
-            Enter your Discord ID to receive your badge.
-          </p>
+            <div className="flex items-center gap-3">
+
+              <div className="rounded-2xl bg-zinc-900 p-2 text-white">
+
+                <BadgeInfo className="h-5 w-5" />
+
+              </div>
 
 
-          <input
+              <div>
 
-            value={discordId}
-
-            onChange={
-              e =>
-              setDiscordId(
-                e.target.value
-              )
-            }
-
-            placeholder="Discord ID"
-
-            className="
-              w-full
-              border
-              rounded-xl
-              px-4
-              py-3
-              mb-3
-            "
-
-          />
+                <h1 className="text-2xl font-bold">
+                  Badge Builder
+                </h1>
 
 
-          <button
+                <p className="text-sm text-zinc-500">
+                  {subtitle}
+                </p>
 
-            onClick={getBadge}
+              </div>
 
-            className="
-              w-full
-              bg-zinc-900
-              text-white
-              rounded-xl
-              py-3
-            "
-
-          >
-
-            Get Badge
-
-          </button>
+            </div>
 
 
-          {
-            error &&
-            <p className="text-red-500 mt-3">
-              {error}
-            </p>
-          }
+
+            <div className="grid gap-2">
+
+              <Label>
+                Build Mode
+              </Label>
+
+
+              <div className="grid grid-cols-2 gap-2">
+
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMode("semiAutomatic")
+                  }
+                  className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                    mode === "semiAutomatic"
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-300 bg-white"
+                  }`}
+                >
+                  Auto-Fill
+                </button>
+
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMode("manual")
+                  }
+                  className={`rounded-2xl border px-4 py-3 text-sm font-semibold ${
+                    mode === "manual"
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-300 bg-white"
+                  }`}
+                >
+                  Manual
+                </button>
+
+
+              </div>
+
+            </div>
+
+
+            <Separator />
+                        {isSemiAutomatic ? (
+
+              <div className="grid gap-3">
+
+                <Label>
+                  Discord ID
+                </Label>
+
+
+                <Input
+                  value={discordId}
+                  inputMode="numeric"
+                  placeholder="Paste your Discord ID"
+                  className="rounded-xl"
+
+                  onChange={(e) => {
+
+                    const value =
+                      e.target.value.replace(/\D/g, "");
+
+                    setDiscordId(value);
+
+
+                    if (value.length >= 17) {
+
+                      fetchBadgeDetails(value);
+
+                    }
+
+                  }}
+                />
+
+
+
+                {lookupLoading && (
+
+                  <div className="flex items-center justify-center gap-3 py-4">
+
+                    <img
+                      src="/favicon.png"
+                      className="h-8 w-8 animate-spin"
+                      alt="Loading"
+                    />
+
+                    <span className="text-sm text-zinc-600">
+                      Fetching your badge...
+                    </span>
+
+                  </div>
+
+                )}
+
+
+
+                {lookupError && (
+
+                  <p className="text-sm font-medium text-red-600">
+                    {lookupError}
+                  </p>
+
+                )}
+
+
+
+                {lookupSuccess && (
+
+                  <p className="text-sm font-medium text-emerald-600">
+                    {lookupSuccess}
+                  </p>
+
+                )}
+
+
+
+                <Button
+                  onClick={downloadBadge}
+                  disabled={
+                    !currentImage ||
+                    lookupLoading
+                  }
+                  className="w-full rounded-2xl"
+                >
+
+                  <Download className="mr-2 inline h-4 w-4" />
+
+                  Download Badge
+
+                </Button>
+
+
+              </div>
+
+
+            ) : (
+
+              <>
+
+                <div className="grid gap-2">
+
+                  <Label>
+                    Badge Template
+                  </Label>
+
+
+                  <Select
+                    value={templateKey}
+                    onValueChange={(value) =>
+                      applyTemplateDefaults(
+                        value as TemplateKey,
+                        true
+                      )
+                    }
+                  >
+
+                    {previewList.map((item) => (
+
+                      <SelectItem
+                        key={item.id}
+                        value={item.id}
+                      >
+                        {item.name}
+                      </SelectItem>
+
+                    ))}
+
+                  </Select>
+
+
+                </div>
+
+
+
+                <Separator />
+
+
+
+                <div className="space-y-3">
+
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+
+                    <Settings2 className="h-4 w-4" />
+
+                    Engraving Lines
+
+                  </div>
+
+
+
+                  {Object.entries(
+                    BADGE_LAYOUT.lines
+                  ).map(([key, cfg]) => (
+
+                    <div
+                      key={key}
+                      className="grid gap-2"
+                    >
+
+                      <Label>
+                        {cfg.label}
+                      </Label>
+
+
+                      <Input
+
+                        className="rounded-xl"
+
+                        value={
+                          form[
+                            key as keyof typeof form
+                          ]
+                        }
+
+
+                        maxLength={
+                          cfg.maxLen
+                        }
+
+
+                        readOnly={
+                          cfg.fixed
+                        }
+
+
+                        onChange={(e) => {
+
+                          if (cfg.fixed)
+                            return;
+
+
+                          setField(
+                            key,
+                            e.target.value.toUpperCase()
+                          );
+
+                        }}
+
+                      />
+
+
+                    </div>
+
+                  ))}
+
+
+                </div>
+
+
+
+                <Button
+                  onClick={downloadBadge}
+                  disabled={!currentImage}
+                  className="w-full rounded-2xl"
+                >
+
+                  <Download className="mr-2 inline h-4 w-4" />
+
+                  Download Badge
+
+                </Button>
+
+
+              </>
+
+            )}
+
+          </CardContent>
+
+        </Card>
+
+
+
+
+        <div className="grid gap-6">
+
+
+          <Card className="rounded-3xl border-0 shadow-xl">
+
+            <CardContent className="p-0">
+
+
+              <div className="border-b px-6 py-4">
+
+                <h2 className="text-lg font-semibold">
+                  Live Preview
+                </h2>
+
+              </div>
+
+
+
+              <div className="grid place-items-center bg-zinc-100 p-6">
+
+                <div className="rounded-3xl bg-white p-4 shadow-xl">
+
+
+                  {currentImage ? (
+
+                    <canvas
+
+                      ref={canvasRef}
+
+                      width={
+                        BADGE_LAYOUT.width
+                      }
+
+                      height={
+                        BADGE_LAYOUT.height
+                      }
+
+                      className="max-w-[700px] rounded-2xl"
+
+                    />
+
+                  ) : (
+
+                    <div className="p-10 text-zinc-400">
+
+                      Waiting for badge...
+
+                    </div>
+
+                  )}
+
+
+                </div>
+
+
+              </div>
+
+
+            </CardContent>
+
+          </Card>
+
+
+
+          {!isSemiAutomatic && (
+
+            <div className="grid gap-4 md:grid-cols-2">
+
+
+              {previewList.map((item) => (
+
+                <button
+
+                  key={item.id}
+
+                  onClick={() =>
+                    applyTemplateDefaults(
+                      item.id as TemplateKey,
+                      true
+                    )
+                  }
+
+                  className="rounded-3xl bg-white p-4 shadow"
+
+                >
+
+                  <p className="font-semibold">
+                    {item.name}
+                  </p>
+
+
+                  <img
+
+                    src={
+                      templateImages[
+                        item.id as keyof typeof templateImages
+                      ]?.src
+                    }
+
+                    className="mx-auto mt-3 h-40"
+
+                  />
+
+                </button>
+
+              ))}
+
+
+            </div>
+
+          )}
 
 
         </div>
 
-      )}
+
+      </div>
 
 
 
-      {loading && (
 
-        <div className="text-center">
+      <a
 
-          <img
-            src="/favicon.png"
-            className="
-              w-20
-              h-20
-              mx-auto
-              animate-spin
-            "
-          />
+        href="https://discord.com/users/640288455766704162"
 
+        target="_blank"
 
-          <h2 className="mt-4 text-xl font-bold">
-            Creating your badge...
-          </h2>
+        rel="noopener noreferrer"
 
+        className="fixed bottom-4 right-4 rounded-lg bg-white px-3 py-1 text-xs font-semibold shadow"
 
-        </div>
+      >
 
-      )}
+        Built by David V.
 
+      </a>
 
-
-      {loaded && (
-
-        <div className="bg-white rounded-3xl shadow-xl p-6 text-center">
-
-
-          <h1 className="text-2xl font-bold mb-5">
-            Your Badge
-          </h1>
-
-
-          <canvas
-
-            ref={canvasRef}
-
-            width={BADGE_LAYOUT.width}
-
-            height={BADGE_LAYOUT.height}
-
-            className="max-w-xl"
-
-          />
-
-
-          <p className="mt-4 text-sm text-zinc-500">
-            Your download should start automatically.
-          </p>
-
-
-        </div>
-
-      )}
 
 
     </div>
-
   );
+
 }
