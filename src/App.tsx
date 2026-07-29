@@ -1616,11 +1616,19 @@ export default function App() {
 
 
 
-          <a
+         <a
         href="https://discord.com/users/640288455766704162"
         target="_blank"
         rel="noopener noreferrer"
-        className="fixed bottom-4 right-4 rounded-lg bg-gradient-to-r from-white to-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700 shadow-md transition hover:scale-105 hover:shadow-lg"
+        style={styles.builtBy}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = "scale(1.05)";
+          e.currentTarget.style.boxShadow = "0 8px 18px rgba(0,0,0,0.16)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = "scale(1)";
+          e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.12)";
+        }}
       >
         Built by David V.
       </a>
